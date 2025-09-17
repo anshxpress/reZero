@@ -1,0 +1,36 @@
+Re-Zero AI Framework Test Document
+
+This is a sample text file for testing the Re-Zero AI Framework's data extraction and analysis capabilities.
+
+Company Information:
+- Company Name: TechCorp Solutions
+- Industry: Technology Services
+- Founded: 2020
+- Employees: 150
+- Revenue: $5.2M (2023)
+
+Financial Highlights:
+- Q1 2023 Revenue: $1.2M
+- Q2 2023 Revenue: $1.4M
+- Q3 2023 Revenue: $1.3M
+- Q4 2023 Revenue: $1.3M
+
+Key Products:
+1. AI-Powered Analytics Platform
+2. Cloud Infrastructure Services
+3. Data Processing Solutions
+4. Machine Learning Consulting
+
+Recent News:
+- TechCorp announced a new partnership with major cloud providers
+- The company received $2M in Series A funding
+- New office expansion planned for Q2 2024
+- Hiring 50 new employees across engineering and sales
+
+Market Analysis:
+The technology services sector is experiencing rapid growth, with AI and cloud computing driving significant demand. TechCorp is well-positioned to capitalize on these trends with its innovative solutions and experienced team.
+
+Contact Information:
+- Email: info@techcorp.com
+- Phone: (555) 123-4567
+- Address: 123 Tech Street, Silicon Valley, CA 94000
