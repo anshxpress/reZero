@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { Menu, X, Bell, User, LogOut, Settings } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
@@ -7,11 +7,37 @@ const Header = ({ onMenuClick }) => {
   const [isProfileOpen, setIsProfileOpen] = useState(false);
   const { user, logout } = useAuth();
   const navigate = useNavigate();
+  const profileDropdownRef = useRef(null);
 
   const handleLogout = async () => {
     await logout();
     navigate('/login');
   };
+
+  // Close dropdown when clicking outside or pressing ESC
+  useEffect(() => {
+    const handleClickOutside = (event) => {
+      if (profileDropdownRef.current && !profileDropdownRef.current.contains(event.target)) {
+        setIsProfileOpen(false);
+      }
+    };
+
+    const handleEscKey = (event) => {
+      if (event.key === 'Escape') {
+        setIsProfileOpen(false);
+      }
+    };
+
+    if (isProfileOpen) {
+      document.addEventListener('mousedown', handleClickOutside);
+      document.addEventListener('keydown', handleEscKey);
+    }
+
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+      document.removeEventListener('keydown', handleEscKey);
+    };
+  }, [isProfileOpen]);
 
   return (
     <header className="bg-white shadow-sm border-b border-secondary-200">
@@ -27,7 +53,7 @@ const Header = ({ onMenuClick }) => {
               <span className="sr-only">Open sidebar</span>
               <Menu className="h-6 w-6" />
             </button>
-            
+
             <div className="ml-4 lg:ml-0">
               <h1 className="text-xl font-semibold text-secondary-900">
                 Re-Zero AI Framework
@@ -47,7 +73,7 @@ const Header = ({ onMenuClick }) => {
             </button>
 
             {/* Profile dropdown */}
-            <div className="relative">
+            <div className="relative" ref={profileDropdownRef}>
               <button
                 type="button"
                 className="flex items-center rounded-full bg-secondary-100 p-2 text-secondary-500 hover:bg-secondary-200 focus:outline-none focus:ring-2 focus:ring-primary-500"
@@ -63,7 +89,7 @@ const Header = ({ onMenuClick }) => {
                     <p className="font-medium">{user?.name}</p>
                     <p className="text-secondary-500">{user?.email}</p>
                   </div>
-                  
+
                   <Link
                     to="/profile"
                     className="flex items-center px-4 py-2 text-sm text-secondary-700 hover:bg-secondary-100"
@@ -72,7 +98,7 @@ const Header = ({ onMenuClick }) => {
                     <Settings className="mr-3 h-4 w-4" />
                     Profile Settings
                   </Link>
-                  
+
                   <button
                     onClick={() => {
                       setIsProfileOpen(false);

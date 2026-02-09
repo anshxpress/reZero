@@ -1,13 +1,13 @@
 import React, { useState } from 'react';
 import { useQuery } from 'react-query';
 import { Link } from 'react-router-dom';
-import { 
-  Plus, 
-  Search, 
-  Filter, 
-  Clock, 
-  CheckCircle, 
-  AlertCircle, 
+import {
+  Plus,
+  Search,
+  Filter,
+  Clock,
+  CheckCircle,
+  AlertCircle,
   Play,
   Pause,
   Trash2,
@@ -75,7 +75,7 @@ const TasksPage = () => {
     const seconds = Math.floor(ms / 1000);
     const minutes = Math.floor(seconds / 60);
     const hours = Math.floor(minutes / 60);
-    
+
     if (hours > 0) {
       return `${hours}h ${minutes % 60}m`;
     } else if (minutes > 0) {
@@ -117,7 +117,7 @@ const TasksPage = () => {
         </div>
         <Link
           to="/ingest"
-          className="btn btn-upload"
+          className="btn btn-upload btn-md"
         >
           <Plus className="h-4 w-4 mr-2" />
           New Task
@@ -279,16 +279,13 @@ const TasksPage = () => {
                       {new Date(task.createdAt).toLocaleDateString()}
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
-                      <div className="flex items-center justify-end space-x-2">
+                      <div className="flex items-center justify-end">
                         <Link
                           to={`/tasks/${task.id}`}
-                          className="text-primary-600 hover:text-primary-900"
+                          className="btn btn-outline btn-sm"
                         >
-                          <Eye className="h-4 w-4" />
+                          View
                         </Link>
-                        <button className="text-secondary-400 hover:text-secondary-600">
-                          <MoreHorizontal className="h-4 w-4" />
-                        </button>
                       </div>
                     </td>
                   </tr>

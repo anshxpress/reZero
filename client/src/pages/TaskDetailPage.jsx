@@ -1,16 +1,17 @@
 import React, { useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useQuery } from 'react-query';
-import { 
-  ArrowLeft, 
-  Clock, 
-  CheckCircle, 
-  AlertCircle, 
+import {
+  ArrowLeft,
+  Clock,
+  CheckCircle,
+  AlertCircle,
   Play,
   Pause,
   Trash2,
   Download,
   RefreshCw,
+  FileWarning,
   Eye,
   EyeOff
 } from 'lucide-react';
@@ -31,7 +32,7 @@ const TaskDetailPage = () => {
     if (typeof content !== 'string') {
       return content;
     }
-    
+
     // Replace [object Object] with a more informative message
     return content.replace(/\[object Object\]/g, '[Complex Object - See Structured Data below]');
   };
@@ -95,7 +96,7 @@ const TaskDetailPage = () => {
     const seconds = Math.floor(ms / 1000);
     const minutes = Math.floor(seconds / 60);
     const hours = Math.floor(minutes / 60);
-    
+
     if (hours > 0) {
       return `${hours}h ${minutes % 60}m ${seconds % 60}s`;
     } else if (minutes > 0) {
@@ -107,6 +108,26 @@ const TaskDetailPage = () => {
 
   const formatDate = (dateString) => {
     return new Date(dateString).toLocaleString();
+  };
+
+  const handleExport = () => {
+    if (!task) return;
+
+    const exportData = {
+      task,
+      agentJobs,
+      agentResults
+    };
+
+    const blob = new Blob([JSON.stringify(exportData, null, 2)], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `task-${task.id}-export.json`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
   };
 
   if (isLoading) {
@@ -157,13 +178,16 @@ const TaskDetailPage = () => {
         </div>
         <div className="flex items-center space-x-2">
           <button
-            onClick={() => refetch()}
+            onClick={() => window.location.reload()}
             className="btn btn-outline btn-sm"
           >
             <RefreshCw className="h-4 w-4 mr-2" />
             Refresh
           </button>
-          <button className="btn btn-outline btn-sm">
+          <button
+            onClick={handleExport}
+            className="btn btn-outline btn-sm"
+          >
             <Download className="h-4 w-4 mr-2" />
             Export
           </button>
@@ -281,62 +305,91 @@ const TaskDetailPage = () => {
                       </span>
                       <button
                         onClick={() => toggleResultExpansion(result.id)}
-                        className="text-secondary-400 hover:text-secondary-600"
+                        className="btn btn-outline btn-sm"
                       >
-                        {expandedResults.has(result.id) ? (
-                          <EyeOff className="h-4 w-4" />
-                        ) : (
-                          <Eye className="h-4 w-4" />
-                        )}
+                        {expandedResults.has(result.id) ? 'Hide' : 'View'}
                       </button>
                     </div>
                   </div>
                 </div>
-                
+
                 {expandedResults.has(result.id) && (
                   <div className="p-4">
                     {/* Content Display */}
-                    {typeof result.content === 'string' ? (
-                      <div className="prose max-w-none">
-                        <ReactMarkdown
-                          components={{
-                            code({ node, inline, className, children, ...props }) {
-                              const match = /language-(\w+)/.exec(className || '');
-                              return !inline && match ? (
-                                <SyntaxHighlighter
-                                  style={tomorrow}
-                                  language={match[1]}
-                                  PreTag="div"
-                                  {...props}
-                                >
-                                  {String(children).replace(/\n$/, '')}
-                                </SyntaxHighlighter>
-                              ) : (
-                                <code className={className} {...props}>
-                                  {children}
-                                </code>
-                              );
-                            },
-                          }}
-                        >
-                          {cleanContent(result.content)}
-                        </ReactMarkdown>
-                      </div>
-                    ) : (
-                      <StructuredDataDisplay 
-                        data={result.content} 
-                        title="Content"
-                      />
-                    )}
-                    
+                    {/* Content Display */}
+                    {(() => {
+                      const contentStr = typeof result.content === 'string' ? result.content : JSON.stringify(result.content);
+                      const isNoData = contentStr.includes('File not found') ||
+                        contentStr.includes('Error extracting text');
+
+                      if (isNoData) {
+                        return (
+                          <div className="bg-red-50 border border-red-200 rounded-md p-4 mb-4">
+                            <div className="flex">
+                              <div className="flex-shrink-0">
+                                <FileWarning className="h-5 w-5 text-red-400" aria-hidden="true" />
+                              </div>
+                              <div className="ml-3">
+                                <h3 className="text-sm font-medium text-red-800">No Data Found in File</h3>
+                                <div className="mt-2 text-sm text-red-700">
+                                  <p>
+                                    The system could not extract text from this file. It may be:
+                                  </p>
+                                  <ul className="list-disc pl-5 mt-1 space-y-1">
+                                    <li>Empty or corrupted</li>
+                                    <li>Password protected</li>
+                                    <li>In an unsupported format (e.g. scanned image without OCR)</li>
+                                  </ul>
+                                </div>
+                              </div>
+                            </div>
+                          </div>
+                        );
+                      }
+
+                      return typeof result.content === 'string' ? (
+                        <div className="prose max-w-none">
+                          <ReactMarkdown
+                            components={{
+                              code({ node, inline, className, children, ...props }) {
+                                const match = /language-(\w+)/.exec(className || '');
+                                return !inline && match ? (
+                                  <SyntaxHighlighter
+                                    style={tomorrow}
+                                    language={match[1]}
+                                    PreTag="div"
+                                    {...props}
+                                  >
+                                    {String(children).replace(/\n$/, '')}
+                                  </SyntaxHighlighter>
+                                ) : (
+                                  <code className={className} {...props}>
+                                    {children}
+                                  </code>
+                                );
+                              },
+                            }}
+                          >
+                            {cleanContent(result.content)}
+                          </ReactMarkdown>
+                        </div>
+                      ) : (
+                        <StructuredDataDisplay
+                          data={result.content}
+                          title="Content"
+                        />
+                      );
+                    })()}
+
+
                     {/* Additional Structured Data */}
                     {result.structuredData && Object.keys(result.structuredData).length > 0 && (
-                      <StructuredDataDisplay 
-                        data={result.structuredData} 
+                      <StructuredDataDisplay
+                        data={result.structuredData}
                         title="Structured Data"
                       />
                     )}
-                    
+
                     {result.tags && result.tags.length > 0 && (
                       <div className="mt-4">
                         <h5 className="text-sm font-medium text-secondary-900 mb-2">
@@ -363,7 +416,7 @@ const TaskDetailPage = () => {
       )}
 
       {/* Error Display */}
-      {task.error && (
+      {task.error && task.error.message && (
         <div className="card p-6 border-error-200 bg-error-50">
           <h3 className="text-lg font-medium text-error-900 mb-2">Error Details</h3>
           <div className="text-sm text-error-700">

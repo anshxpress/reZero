@@ -13,7 +13,7 @@ const router = express.Router();
 export const authenticateToken = async (req, res, next) => {
   try {
     const authHeader = req.headers['authorization'];
-    
+
     if (!authHeader) {
       return res.status(401).json({ error: 'Authentication required. Please login first.' });
     }
@@ -32,13 +32,13 @@ export const authenticateToken = async (req, res, next) => {
 
     try {
       const decoded = jwt.verify(token, config.jwt.secret);
-      
+
       if (!decoded.userId) {
         return res.status(401).json({ error: 'Invalid token: missing user ID' });
       }
 
       const user = await User.findById(decoded.userId);
-      
+
       if (!user) {
         logger.warn('Token references non-existent user', { userId: decoded.userId });
         return res.status(401).json({ error: 'Invalid token: user not found' });
@@ -195,6 +195,34 @@ router.get('/profile', authenticateToken, async (req, res) => {
   }
 });
 
+// Get user by custom userId
+router.get('/user/:userId', authenticateToken, async (req, res) => {
+  try {
+    const { userId } = req.params;
+
+    // Find user by custom userId
+    const user = await User.findOne({ userId });
+
+    if (!user) {
+      return res.status(404).json({ error: 'User not found' });
+    }
+
+    // Only allow users to view their own profile or admins to view any profile
+    if (req.user._id.toString() !== user._id.toString() && req.user.role !== 'admin') {
+      return res.status(403).json({ error: 'Access denied' });
+    }
+
+    logger.info('User retrieved by userId', { userId, requestedBy: req.user._id });
+
+    res.json({
+      user: user.toJSON()
+    });
+  } catch (error) {
+    logger.error('Get user by userId failed', { error: error.message });
+    res.status(500).json({ error: 'Failed to get user' });
+  }
+});
+
 // Update user profile
 router.put('/profile', authenticateToken, [
   body('name').optional().trim().isLength({ min: 1 }),
@@ -265,6 +293,53 @@ router.post('/logout', authenticateToken, async (req, res) => {
   } catch (error) {
     logger.error('Logout failed', { error: error.message });
     res.status(500).json({ error: 'Logout failed' });
+  }
+});
+
+// Migration endpoint - Generate userId for all existing users (Admin only)
+router.post('/migrate-userids', authenticateToken, async (req, res) => {
+  try {
+    // Only allow admins
+    if (req.user.role !== 'admin') {
+      return res.status(403).json({ error: 'Admin access required' });
+    }
+
+    logger.info('Starting userId migration', { requestedBy: req.user._id });
+
+    // Find all users without userId
+    const usersWithoutId = await User.find({
+      $or: [{ userId: { $exists: false } }, { userId: null }]
+    });
+
+    let successCount = 0;
+    let errorCount = 0;
+    const errors = [];
+
+    for (const user of usersWithoutId) {
+      try {
+        await user.save(); // Triggers pre-save hook
+        successCount++;
+        logger.info(`Generated userId for user: ${user.email} -> ${user.userId}`);
+      } catch (error) {
+        errorCount++;
+        errors.push({ email: user.email, error: error.message });
+        logger.error(`Failed to generate userId for user ${user.email}:`, error.message);
+      }
+    }
+
+    logger.info('Migration complete', { success: successCount, errors: errorCount });
+
+    res.json({
+      message: 'Migration complete',
+      totalProcessed: usersWithoutId.length,
+      success: successCount,
+      errors: errorCount,
+      errorDetails: errors
+    });
+
+  } catch (error) {
+    logger.error('Migration failed', { error: error.message });
+    res.status(500).json({ error: 'Migration failed' });
   }
 });
 

@@ -1,13 +1,13 @@
 import React, { useState, useRef } from 'react';
 import { useForm } from 'react-hook-form';
 import { useMutation, useQuery } from 'react-query';
-import { 
-  Upload, 
-  FileText, 
-  Link as LinkIcon, 
-  Type, 
-  X, 
-  CheckCircle, 
+import {
+  Upload,
+  FileText,
+  Link as LinkIcon,
+  Type,
+  X,
+  CheckCircle,
   AlertCircle,
   Loader2,
   Plus,
@@ -16,6 +16,7 @@ import {
 } from 'lucide-react';
 import { ingestAPI, tasksAPI } from '../services/api';
 import toast from 'react-hot-toast';
+import CurrentTaskDisplay from '../components/CurrentTaskDisplay';
 
 const IngestPage = () => {
   const [activeTab, setActiveTab] = useState('text');
@@ -25,6 +26,7 @@ const IngestPage = () => {
   const [urlInputs, setUrlInputs] = useState(['']);
   const [dragActive, setDragActive] = useState(false);
   const [selectedAgents, setSelectedAgents] = useState([]);
+  const [currentTaskId, setCurrentTaskId] = useState(null); // New state for current task
   const fileInputRef = useRef(null);
   const multipleFileInputRef = useRef(null);
 
@@ -44,7 +46,7 @@ const IngestPage = () => {
       console.log('Agents API not available, using mock data');
     }
   });
-  
+
   // Mock agents for testing when API is not available
   const agents = agentsData?.data?.agents || [
     {
@@ -93,7 +95,7 @@ const IngestPage = () => {
       setSelectedFiles([]);
       setTextInputs(['']);
       setUrlInputs(['']);
-      
+
       // Automatically create a task after successful upload
       if (response.data?.ingestId) {
         await createTask(response.data.ingestId);
@@ -107,16 +109,16 @@ const IngestPage = () => {
   // Upload file mutation
   const uploadFileMutation = useMutation(ingestAPI.upload, {
     onSuccess: async (response) => {
-      const successMessage = activeTab === 'multiple' 
+      const successMessage = activeTab === 'multiple'
         ? `Multiple data sources uploaded successfully! (${textInputs.filter(t => t.trim()).length + urlInputs.filter(u => u.trim()).length + selectedFiles.length} sources)`
         : 'File uploaded successfully!';
       toast.success(successMessage);
-      
+
       setSelectedFile(null);
       setSelectedFiles([]);
       setTextInputs(['']);
       setUrlInputs(['']);
-      
+
       // Automatically create a task after successful upload
       if (response.data?.ingestId) {
         await createTask(response.data.ingestId);
@@ -243,13 +245,13 @@ const IngestPage = () => {
   const handleTabChange = (tabId) => {
     setActiveTab(tabId);
     clearErrors('content'); // Clear any validation errors when switching tabs
-    
+
     // Clear file selections when switching away from file tabs
     if (tabId !== 'file' && tabId !== 'multiple') {
       setSelectedFile(null);
       setSelectedFiles([]);
     }
-    
+
     // Clear multiple data sources when switching away from multiple tab
     if (tabId !== 'multiple') {
       setTextInputs(['']);
@@ -269,7 +271,7 @@ const IngestPage = () => {
         const hasText = textInputs.some(text => text.trim());
         const hasUrls = urlInputs.some(url => url.trim());
         const hasFiles = selectedFiles.length > 0;
-        
+
         if (!hasText && !hasUrls && !hasFiles) {
           toast.error('Please add at least one data source (text, URL, or file)');
           return;
@@ -304,7 +306,7 @@ const IngestPage = () => {
             combinedContent += content;
             sources.push({ type: 'file', content: file.name, index: index + 1 });
           });
-          
+
           formData.append('metadata', JSON.stringify({
             title: data.title || `Multiple Data Sources (${sources.length} sources)`,
             description: data.description || `Combined ${sources.length} data sources for processing`,
@@ -317,7 +319,7 @@ const IngestPage = () => {
             textCount: textInputs.filter(t => t.trim()).length,
             urlCount: urlInputs.filter(u => u.trim()).length
           }));
-          
+
           await uploadFileMutation.mutateAsync(formData);
         } else {
           // No files, just text and URLs - use regular ingest
@@ -377,9 +379,9 @@ const IngestPage = () => {
     }
 
     try {
-      await createTaskMutation.mutateAsync({
+      const response = await createTaskMutation.mutateAsync({
         ingestId,
-        name: activeTab === 'multiple' 
+        name: activeTab === 'multiple'
           ? `Task for multiple data sources (${textInputs.filter(t => t.trim()).length + urlInputs.filter(u => u.trim()).length + selectedFiles.length} sources)`
           : `Task for ${activeTab} data`,
         selectedAgents,
@@ -394,6 +396,17 @@ const IngestPage = () => {
           })
         },
       });
+
+      // Set the current task ID from the response to show the display
+      console.log('Task created response:', response);
+      if (response?.data?.taskId) {
+        setCurrentTaskId(response.data.taskId);
+      } else if (response?.data?.task?.id || response?.data?.task?._id) {
+        setCurrentTaskId(response.data.task.id || response.data.task._id);
+      } else if (response?.data?.id || response?.data?._id) {
+        setCurrentTaskId(response.data.id || response.data._id);
+      }
+
     } catch (error) {
       // Error handling is done in the mutation
     }
@@ -414,8 +427,11 @@ const IngestPage = () => {
         <p className="text-secondary-600">
           Upload your data and select AI agents to process it.
         </p>
-        
+
       </div>
+
+      {/* Current Task Display - Shows only when a task has been just created */}
+
 
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
         {/* Upload Form */}
@@ -428,11 +444,10 @@ const IngestPage = () => {
                   <button
                     key={tab.id}
                     onClick={() => handleTabChange(tab.id)}
-                    className={`btn-tab ${
-                      activeTab === tab.id
-                        ? 'btn-tab-active'
-                        : 'btn-tab-inactive'
-                    }`}
+                    className={`btn-tab ${activeTab === tab.id
+                      ? 'btn-tab-active'
+                      : 'btn-tab-inactive'
+                      }`}
                   >
                     <tab.icon className="h-4 w-4" />
                     <span>{tab.name}</span>
@@ -449,7 +464,7 @@ const IngestPage = () => {
                     Text Content
                   </label>
                   <textarea
-                    {...register('content', { 
+                    {...register('content', {
                       required: 'Content is required'
                     })}
                     rows={8}
@@ -459,7 +474,7 @@ const IngestPage = () => {
                   {errors.content && (
                     <p className="mt-1 text-sm text-error-600">{errors.content.message}</p>
                   )}
-                  
+
                   {/* Sample Text Options */}
                   <div className="mt-4">
                     <p className="text-sm text-secondary-600 mb-2">Quick test with sample data:</p>
@@ -563,7 +578,7 @@ This news summary provides insights into the technology sector's current state a
                     URL
                   </label>
                   <input
-                    {...register('content', { 
+                    {...register('content', {
                       required: 'URL is required'
                     })}
                     type="url"
@@ -581,11 +596,10 @@ This news summary provides insights into the technology sector's current state a
                 <div>
                   <label className="label">File Upload</label>
                   <div
-                    className={`relative border-2 border-dashed rounded-lg p-6 transition-colors ${
-                      dragActive
-                        ? 'border-primary-400 bg-primary-50'
-                        : 'border-secondary-300 hover:border-secondary-400'
-                    }`}
+                    className={`relative border-2 border-dashed rounded-lg p-6 transition-colors ${dragActive
+                      ? 'border-primary-400 bg-primary-50'
+                      : 'border-secondary-300 hover:border-secondary-400'
+                      }`}
                     onDragEnter={handleDrag}
                     onDragLeave={handleDrag}
                     onDragOver={handleDrag}
@@ -730,11 +744,10 @@ This news summary provides insights into the technology sector's current state a
                       </button>
                     </div>
                     <div
-                      className={`relative border-2 border-dashed rounded-lg p-6 transition-colors ${
-                        dragActive
-                          ? 'border-primary-400 bg-primary-50'
-                          : 'border-secondary-300 hover:border-secondary-400'
-                      }`}
+                      className={`relative border-2 border-dashed rounded-lg p-6 transition-colors ${dragActive
+                        ? 'border-primary-400 bg-primary-50'
+                        : 'border-secondary-300 hover:border-secondary-400'
+                        }`}
                       onDragEnter={handleMultipleDrag}
                       onDragLeave={handleMultipleDrag}
                       onDragOver={handleMultipleDrag}
@@ -850,6 +863,13 @@ This news summary provides insights into the technology sector's current state a
               </div>
             </form>
           </div>
+
+          {/* Current Task Display - Shows only when a task has been just created */}
+          {currentTaskId && (
+            <div className="mt-8 animate-in fade-in slide-in-from-top-4 duration-500">
+              <CurrentTaskDisplay taskId={currentTaskId} />
+            </div>
+          )}
         </div>
 
         {/* Agent Selection */}

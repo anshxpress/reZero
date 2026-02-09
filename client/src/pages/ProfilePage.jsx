@@ -1,12 +1,12 @@
 import React, { useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { useAuth } from '../contexts/AuthContext';
-import { 
-  User, 
-  Mail, 
-  Calendar, 
-  Settings, 
-  Save, 
+import {
+  User,
+  Mail,
+  Calendar,
+  Settings,
+  Save,
   Loader2,
   CheckCircle,
   AlertCircle
@@ -248,7 +248,7 @@ const ProfilePage = () => {
                   User ID
                 </label>
                 <p className="text-sm text-secondary-900 font-mono">
-                  {user?.id?.slice(-8)}
+                  {user?.userId || 'Generating...'}
                 </p>
               </div>
             </div>
