@@ -151,6 +151,7 @@ Re-Zero is an enterprise-grade AI platform that processes various types of data 
 ## 🚀 Quick Start
 
 > **📖 For detailed installation instructions, see [INSTALLATION.md](INSTALLATION.md)**
+> **🚀 For production deployment (Render/Vercel/Docker), see [DEPLOYMENT.md](DEPLOYMENT.md)**
 
 ### Prerequisites
 

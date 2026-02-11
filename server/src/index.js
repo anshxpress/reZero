@@ -111,7 +111,7 @@ app.use((error, req, res, next) => {
 
   // Don't leak error details in production
   const isDevelopment = config.nodeEnv === 'development';
-  
+
   res.status(error.status || 500).json({
     error: isDevelopment ? error.message : 'Internal server error',
     ...(isDevelopment && { stack: error.stack })
@@ -121,13 +121,10 @@ app.use((error, req, res, next) => {
 // Database connection
 const connectDB = async () => {
   try {
-    await mongoose.connect(config.mongodbUri, {
-      useNewUrlParser: true,
-      useUnifiedTopology: true,
-    });
-    
+    await mongoose.connect(config.mongodbUri);
+
     logger.info('MongoDB connected successfully', {
-      uri: config.mongodbUri.replace(/\/\/.*@/, '//***:***@') // Hide credentials in logs
+      uri: config.mongodbUri.replace(/\/\/([^:]+):([^@]+)@/, '//***:***@') // Hide credentials
     });
   } catch (error) {
     logger.error('MongoDB connection failed', { error: error.message });
@@ -141,11 +138,11 @@ let server;
 // Graceful shutdown
 const gracefulShutdown = (signal) => {
   logger.info(`Received ${signal}, shutting down gracefully`);
-  
+
   if (server) {
     server.close(() => {
       logger.info('HTTP server closed');
-      
+
       mongoose.connection.close(false, () => {
         logger.info('MongoDB connection closed');
         process.exit(0);
@@ -164,9 +161,10 @@ const startServer = async () => {
   try {
     // Connect to database
     await connectDB();
-    
+
     // Start HTTP server
-    server = app.listen(config.port, () => {
+    // Bind to 0.0.0.0 to ensure Docker/Render exposure
+    server = app.listen(config.port, '0.0.0.0', () => {
       logger.info('Server started successfully', {
         port: config.port,
         environment: config.nodeEnv,
