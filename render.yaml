@@ -2,8 +2,6 @@ services:
   - type: web
     name: rezero-server
     env: docker
-    rootDir: server
-    dockerfilePath: Dockerfile
     plan: free
     envVars:
       - key: NODE_ENV
