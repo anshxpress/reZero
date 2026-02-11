@@ -1,13 +1,15 @@
 services:
   - type: web
     name: rezero-server
-    env: node
+    env: docker
+    rootDir: server
+    dockerfilePath: Dockerfile
     plan: free
-    buildCommand: cd server && npm install
-    startCommand: cd server && npm start
     envVars:
       - key: NODE_ENV
         value: production
       - key: PORT
         value: 10000
+      - key: CLIENT_URL
+        value: "*" # Temporary wildcard for initial setup
     autoDeploy: false
