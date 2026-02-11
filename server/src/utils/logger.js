@@ -24,15 +24,15 @@ const logger = winston.createLogger({
 });
 
 // Add console transport for development
-if (config.nodeEnv !== 'production') {
-  logger.add(new winston.transports.Console({
-    format: combine(
-      colorize(),
-      timestamp({ format: 'HH:mm:ss' }),
-      consoleFormat
-    )
-  }));
-}
+// Add console transport for ALL environments (including production)
+// This ensures logs are visible in Render/Docker logs
+logger.add(new winston.transports.Console({
+  format: combine(
+    colorize(),
+    timestamp({ format: 'HH:mm:ss' }),
+    consoleFormat
+  )
+}));
 
 // Create logs directory if it doesn't exist
 import { mkdirSync } from 'fs';
