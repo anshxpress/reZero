@@ -3,6 +3,7 @@ import { Link, useNavigate } from 'react-router-dom';
 import { useForm } from 'react-hook-form';
 import { Eye, EyeOff, Brain, Loader2 } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
+import toast from 'react-hot-toast';
 
 const LoginPage = () => {
   const [showPassword, setShowPassword] = useState(false);
@@ -42,7 +43,7 @@ const LoginPage = () => {
         email: 'test@example.com',
         password: 'test123' // You may need to adjust this based on your test user
       });
-      
+
       if (!result.success) {
         toast.error('Test login failed. Please register a new account or use valid credentials.');
       }
@@ -183,7 +184,7 @@ const LoginPage = () => {
                   'Sign in'
                 )}
               </button>
-              
+
               <button
                 type="button"
                 onClick={handleTestLogin}

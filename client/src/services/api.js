@@ -1,6 +1,19 @@
 import axios from 'axios';
 
-const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:4000/api/v1';
+const getBaseUrl = () => {
+  let url = import.meta.env.VITE_API_BASE_URL || 'http://localhost:4000/api/v1';
+  // Remove trailing slash
+  if (url.endsWith('/')) {
+    url = url.slice(0, -1);
+  }
+  // Append /api/v1 if not present
+  if (!url.endsWith('/api/v1')) {
+    url += '/api/v1';
+  }
+  return url;
+};
+
+const API_BASE_URL = getBaseUrl();
 
 // Create axios instance
 const api = axios.create({
@@ -33,12 +46,12 @@ api.interceptors.response.use(
     if (error.response?.status === 401 || error.response?.status === 403) {
       // Token expired, invalid, or missing
       const errorMessage = error.response?.data?.error || 'Authentication required';
-      
+
       // Only redirect if we're not already on the login page
       if (window.location.pathname !== '/login') {
         localStorage.removeItem('token');
         localStorage.removeItem('user');
-        
+
         // Show error message before redirect
         if (errorMessage.includes('token') || errorMessage.includes('Authentication')) {
           // Small delay to allow toast to show if using toast notifications
