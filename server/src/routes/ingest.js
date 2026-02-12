@@ -61,10 +61,10 @@ const extractTextFromFile = async (fileBuffer, mimeType, filename) => {
       };
     }
   } catch (error) {
-    logger.error('Error extracting text from file', { 
-      mimeType, 
-      filename, 
-      error: error.message 
+    logger.error('Error extracting text from file', {
+      mimeType,
+      filename,
+      error: error.message
     });
     return {
       text: `[Error extracting text from ${filename}: ${error.message}]`,
@@ -86,7 +86,7 @@ const processContent = async (content, type, metadata = {}) => {
       extractedData.wordCount = processedContent.split(/\s+/).length;
       extractedData.characterCount = processedContent.length;
       break;
-    
+
     case 'url':
       // Extract basic info from URL
       try {
@@ -98,13 +98,13 @@ const processContent = async (content, type, metadata = {}) => {
         logger.warn('Invalid URL provided', { url: content, error: error.message });
       }
       break;
-    
+
     case 'file':
       // File-specific processing
       extractedData.fileType = metadata.mimeType;
       extractedData.fileSize = metadata.size;
       break;
-    
+
     case 'multiple_files':
       // Multiple files processing
       extractedData.fileCount = metadata.fileCount;
@@ -112,7 +112,7 @@ const processContent = async (content, type, metadata = {}) => {
       extractedData.fileNames = metadata.fileNames;
       extractedData.files = metadata.files;
       break;
-    
+
     case 'multiple_sources':
       // Multiple data sources processing (text, URLs, files)
       extractedData.sourceCount = metadata.sourceCount;
@@ -168,17 +168,17 @@ router.post('/', authenticateToken, [
     processContent(content, type, metadata)
       .then(async ({ processedContent, extractedData }) => {
         await ingest.markCompleted(processedContent, extractedData);
-        logger.info('Content processed successfully', { 
-          ingestId: ingest._id, 
-          type, 
-          contentLength: content.length 
+        logger.info('Content processed successfully', {
+          ingestId: ingest._id,
+          type,
+          contentLength: content.length
         });
       })
       .catch(async (error) => {
         await ingest.markFailed(error);
-        logger.error('Content processing failed', { 
-          ingestId: ingest._id, 
-          error: error.message 
+        logger.error('Content processing failed', {
+          ingestId: ingest._id,
+          error: error.message
         });
       });
 
@@ -194,10 +194,10 @@ router.post('/', authenticateToken, [
       status: 'success'
     });
 
-    logger.info('Ingest created', { 
-      ingestId: ingest._id, 
-      userId: req.user._id, 
-      type 
+    logger.info('Ingest created', {
+      ingestId: ingest._id,
+      userId: req.user._id,
+      type
     });
 
     res.status(201).json({
@@ -224,7 +224,7 @@ router.post('/upload', authenticateToken, (req, res, next) => {
 }, async (req, res) => {
   try {
     const files = req.files || [];
-    
+
     if (files.length === 0) {
       return res.status(400).json({ error: 'No files uploaded' });
     }
@@ -232,7 +232,7 @@ router.post('/upload', authenticateToken, (req, res, next) => {
     // Check if this is a multiple files upload
     const isMultipleFiles = files.length > 1 || req.body.metadata;
     let metadata = {};
-    
+
     if (req.body.metadata) {
       try {
         metadata = JSON.parse(req.body.metadata);
@@ -295,17 +295,17 @@ router.post('/upload', authenticateToken, (req, res, next) => {
     processContent(combinedContent, isMultipleFiles ? 'multiple_files' : 'file', combinedMetadata)
       .then(async ({ processedContent, extractedData }) => {
         await ingest.markCompleted(processedContent, extractedData);
-        logger.info('Files processed successfully', { 
-          ingestId: ingest._id, 
+        logger.info('Files processed successfully', {
+          ingestId: ingest._id,
           fileCount: files.length,
           totalSize: combinedMetadata.totalSize
         });
       })
       .catch(async (error) => {
         await ingest.markFailed(error);
-        logger.error('File processing failed', { 
-          ingestId: ingest._id, 
-          error: error.message 
+        logger.error('File processing failed', {
+          ingestId: ingest._id,
+          error: error.message
         });
       });
 
@@ -317,7 +317,7 @@ router.post('/upload', authenticateToken, (req, res, next) => {
       resourceId: ingest._id,
       ipAddress: req.ip,
       userAgent: req.get('User-Agent'),
-      details: { 
+      details: {
         fileCount: files.length,
         fileNames: files.map(f => f.originalname),
         totalSize: combinedMetadata.totalSize
@@ -325,14 +325,14 @@ router.post('/upload', authenticateToken, (req, res, next) => {
       status: 'success'
     });
 
-    logger.info('Files uploaded', { 
-      ingestId: ingest._id, 
-      userId: req.user._id, 
+    logger.info('Files uploaded', {
+      ingestId: ingest._id,
+      userId: req.user._id,
       fileCount: files.length
     });
 
     res.status(201).json({
-      message: isMultipleFiles 
+      message: isMultipleFiles
         ? `Files uploaded successfully (${files.length} files)`
         : 'File uploaded successfully',
       ingestId: ingest._id,
@@ -365,9 +365,9 @@ router.get('/:id', authenticateToken, async (req, res) => {
         id: ingest._id,
         type: ingest.type,
         status: ingest.status,
-        metadata: Object.fromEntries(ingest.metadata),
+        metadata: ingest.metadata,
         processedContent: ingest.processedContent,
-        extractedData: Object.fromEntries(ingest.extractedData),
+        extractedData: ingest.extractedData instanceof Map ? Object.fromEntries(ingest.extractedData) : ingest.extractedData,
         processingStats: ingest.processingStats,
         error: ingest.error,
         createdAt: ingest.createdAt,
@@ -404,7 +404,7 @@ router.get('/', authenticateToken, async (req, res) => {
         id: ingest._id,
         type: ingest.type,
         status: ingest.status,
-        metadata: Object.fromEntries(ingest.metadata),
+        metadata: ingest.metadata,
         processingStats: ingest.processingStats,
         error: ingest.error,
         createdAt: ingest.createdAt,
