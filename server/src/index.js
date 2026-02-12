@@ -10,6 +10,7 @@ import logger from './utils/logger.js';
 import authRoutes from './routes/auth.js';
 import ingestRoutes from './routes/ingest.js';
 import taskRoutes from './routes/tasks.js';
+import adminRoutes from './routes/admin.js';
 
 const app = express();
 
@@ -81,6 +82,7 @@ app.get('/health', (req, res) => {
 app.use('/api/v1/auth', authRoutes);
 app.use('/api/v1/ingest', ingestRoutes);
 app.use('/api/v1/tasks', taskRoutes);
+app.use('/api/v1/admin', adminRoutes);
 
 // Root endpoint
 app.get('/', (req, res) => {

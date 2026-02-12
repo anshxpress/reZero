@@ -10,6 +10,7 @@ import IngestPage from './pages/IngestPage';
 import TasksPage from './pages/TasksPage';
 import TaskDetailPage from './pages/TaskDetailPage';
 import ProfilePage from './pages/ProfilePage';
+import AdminDashboard from './pages/AdminDashboard';
 import NotFoundPage from './pages/NotFoundPage';
 
 // Simple test component
@@ -59,7 +60,7 @@ function App() {
       <Routes>
         {/* Test route */}
         <Route path="/test" element={<SimpleTest />} />
-        
+
         {/* Public routes */}
         <Route
           path="/login"
@@ -86,7 +87,7 @@ function App() {
             </Layout>
           </ProtectedRoute>
         } />
-        
+
         {/* Protected routes */}
         <Route
           path="/"
@@ -101,6 +102,7 @@ function App() {
           <Route path="tasks" element={<TasksPage />} />
           <Route path="tasks/:id" element={<TaskDetailPage />} />
           <Route path="profile" element={<ProfilePage />} />
+          <Route path="admin" element={<AdminDashboard />} />
         </Route>
 
         {/* 404 route */}

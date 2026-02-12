@@ -1,10 +1,11 @@
 import React from 'react';
 import { NavLink, useLocation } from 'react-router-dom';
-import { 
-  LayoutDashboard, 
-  Upload, 
-  CheckSquare, 
-  User, 
+import { useAuth } from '../contexts/AuthContext';
+import {
+  LayoutDashboard,
+  Upload,
+  CheckSquare,
+  User,
   BarChart3,
   Brain,
   FileText,
@@ -18,6 +19,11 @@ const navigation = [
   { name: 'Profile', href: '/profile', icon: User },
 ];
 
+const adminNavigation = [
+  ...navigation,
+  { name: 'Admin', href: '/admin', icon: LayoutDashboard }, // You might want a different icon
+];
+
 const agentInfo = [
   { name: 'Data Extraction', icon: FileText, color: 'text-blue-600' },
   { name: 'Financial Analysis', icon: TrendingUp, color: 'text-green-600' },
@@ -28,6 +34,7 @@ const agentInfo = [
 
 const Sidebar = () => {
   const location = useLocation();
+  const { user } = useAuth(); // Assuming AuthContext provides user object
 
   return (
     <div className="hidden lg:fixed lg:inset-y-0 lg:z-50 lg:flex lg:w-64 lg:flex-col">
@@ -49,22 +56,20 @@ const Sidebar = () => {
           <ul role="list" className="flex flex-1 flex-col gap-y-7">
             <li>
               <ul role="list" className="-mx-2 space-y-1">
-                {navigation.map((item) => {
+                {(user?.role === 'admin' ? adminNavigation : navigation).map((item) => {
                   const isActive = location.pathname === item.href;
                   return (
                     <li key={item.name}>
                       <NavLink
                         to={item.href}
-                        className={`group flex gap-x-3 rounded-md p-2 text-sm leading-6 font-semibold transition-colors ${
-                          isActive
-                            ? 'bg-primary-50 text-primary-700'
-                            : 'text-secondary-700 hover:text-primary-700 hover:bg-secondary-50'
-                        }`}
+                        className={`group flex gap-x-3 rounded-md p-2 text-sm leading-6 font-semibold transition-colors ${isActive
+                          ? 'bg-primary-50 text-primary-700'
+                          : 'text-secondary-700 hover:text-primary-700 hover:bg-secondary-50'
+                          }`}
                       >
                         <item.icon
-                          className={`h-6 w-6 shrink-0 ${
-                            isActive ? 'text-primary-700' : 'text-secondary-400 group-hover:text-primary-700'
-                          }`}
+                          className={`h-6 w-6 shrink-0 ${isActive ? 'text-primary-700' : 'text-secondary-400 group-hover:text-primary-700'
+                            }`}
                         />
                         {item.name}
                       </NavLink>

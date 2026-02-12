@@ -111,4 +111,11 @@ export const healthAPI = {
   check: () => api.get('/health'),
 };
 
+// Admin API
+export const adminAPI = {
+  getStats: () => api.get('/admin/stats'),
+  getUsers: (params) => api.get('/admin/users', { params }),
+  getLogs: (params) => api.get('/admin/logs', { params }),
+};
+
 export default api;
