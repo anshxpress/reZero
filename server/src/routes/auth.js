@@ -215,12 +215,13 @@ router.post('/test-login', async (req, res) => {
       { expiresIn: '3m' }
     );
 
-    // Log login
+    // Log login using a valid enum 'user_login'
     await AuditLog.logAction({
       userId: user._id,
-      action: 'test_user_login',
+      action: 'user_login',
       resourceType: 'user',
       resourceId: user._id,
+      details: { isTestLogin: true },
       ipAddress: req.ip,
       userAgent: req.get('User-Agent'),
       status: 'success'
