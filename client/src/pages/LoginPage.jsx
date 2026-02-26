@@ -7,7 +7,7 @@ import toast from 'react-hot-toast';
 
 const LoginPage = () => {
   const [showPassword, setShowPassword] = useState(false);
-  const { login, isAuthenticated, isLoading, error, clearError } = useAuth();
+  const { login, testLogin, isAuthenticated, isLoading, error, clearError } = useAuth();
   const navigate = useNavigate();
 
   const {
@@ -36,19 +36,14 @@ const LoginPage = () => {
   };
 
   const handleTestLogin = async () => {
-    // Try to login with test credentials
-    // This will get a valid token from the server
     try {
-      const result = await login({
-        email: 'test@example.com',
-        password: 'test123' // You may need to adjust this based on your test user
-      });
-
-      if (!result.success) {
-        toast.error('Test login failed. Please register a new account or use valid credentials.');
+      const result = await testLogin();
+      
+      if (result.success) {
+        navigate('/dashboard');
       }
     } catch (error) {
-      toast.error('Test login failed. Please register a new account.');
+      toast.error('Test login failed. Please try again or register a new account.');
     }
   };
 

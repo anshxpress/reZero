@@ -183,6 +183,63 @@ router.post('/login', [
   }
 });
 
+// Temporary 3-minute test user login
+router.post('/test-login', async (req, res) => {
+  try {
+    const testEmail = 'testuser@example.com';
+    
+    // Find or create test user
+    let user = await User.findOne({ email: testEmail });
+    if (!user) {
+      user = new User({
+        email: testEmail,
+        password: 'securetestpassword123!', // This won't be used since we bypass password check
+        name: 'Test User'
+      });
+      await user.save();
+    }
+
+    if (!user.isActive) {
+      user.isActive = true;
+      await user.save();
+    }
+
+    // Update last login
+    user.lastLogin = new Date();
+    await user.save();
+
+    // Generate JWT token with 3-minute expiration
+    const token = jwt.sign(
+      { userId: user._id, email: user.email },
+      config.jwt.secret,
+      { expiresIn: '3m' }
+    );
+
+    // Log login
+    await AuditLog.logAction({
+      userId: user._id,
+      action: 'test_user_login',
+      resourceType: 'user',
+      resourceId: user._id,
+      ipAddress: req.ip,
+      userAgent: req.get('User-Agent'),
+      status: 'success'
+    });
+
+    logger.info('Test User logged in successfully', { userId: user._id, email: user.email });
+
+    res.json({
+      message: 'Test login successful (expires in 3 minutes)',
+      token,
+      user: user.toJSON()
+    });
+
+  } catch (error) {
+    logger.error('Test user login failed', { error: error.message });
+    res.status(500).json({ error: 'Test Login failed' });
+  }
+});
+
 // Get current user profile
 router.get('/profile', authenticateToken, async (req, res) => {
   try {

@@ -120,6 +120,34 @@ export const AuthProvider = ({ children }) => {
     }
   };
 
+  const testLogin = async () => {
+    dispatch({ type: 'LOGIN_START' });
+    
+    try {
+      const response = await authAPI.testLogin();
+      const { user, token } = response.data;
+
+      localStorage.setItem('token', token);
+      localStorage.setItem('user', JSON.stringify(user));
+
+      dispatch({
+        type: 'LOGIN_SUCCESS',
+        payload: { user, token },
+      });
+
+      toast.success('Test login successful! Access expires in 3 minutes.');
+      return { success: true };
+    } catch (error) {
+      const errorMessage = error.response?.data?.error || 'Test login failed';
+      dispatch({
+        type: 'LOGIN_FAILURE',
+        payload: errorMessage,
+      });
+      toast.error(errorMessage);
+      return { success: false, error: errorMessage };
+    }
+  };
+
   const register = async (userData) => {
     dispatch({ type: 'LOGIN_START' });
     
@@ -188,6 +216,7 @@ export const AuthProvider = ({ children }) => {
   const value = {
     ...state,
     login,
+    testLogin,
     register,
     logout,
     updateProfile,
