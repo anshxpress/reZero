@@ -9,13 +9,25 @@ import logger from '../utils/logger.js';
 
 const router = express.Router();
 
+const logAuthAction = async (actionData) => {
+  try {
+    await AuditLog.logAction(actionData);
+  } catch (error) {
+    logger.warn('Auth audit log failed', {
+      action: actionData.action,
+      resourceType: actionData.resourceType,
+      error: error.message
+    });
+  }
+};
+
 // Middleware to verify JWT token
 export const authenticateToken = async (req, res, next) => {
   try {
     const authHeader = req.headers['authorization'];
 
     if (!authHeader) {
-      return res.status(401).json({ error: 'Authentication required. Please login first.' });
+      return res.status(401).json({ error: 'Access token required' });
     }
 
     // Check if it's Bearer token format
@@ -99,7 +111,7 @@ router.post('/register', [
     await user.save();
 
     // Log registration
-    await AuditLog.logAction({
+    await logAuthAction({
       userId: user._id,
       action: 'user_register',
       resourceType: 'user',
@@ -111,8 +123,15 @@ router.post('/register', [
 
     logger.info('User registered successfully', { userId: user._id, email });
 
+    const token = jwt.sign(
+      { userId: user._id, email: user.email },
+      config.jwt.secret,
+      { expiresIn: config.jwt.expiresIn }
+    );
+
     res.status(201).json({
       message: 'User registered successfully',
+      token,
       user: user.toJSON()
     });
 
@@ -159,7 +178,7 @@ router.post('/login', [
     );
 
     // Log login
-    await AuditLog.logAction({
+    await logAuthAction({
       userId: user._id,
       action: 'user_login',
       resourceType: 'user',
@@ -186,6 +205,10 @@ router.post('/login', [
 // Temporary 3-minute test user login
 router.post('/test-login', async (req, res) => {
   try {
+    if (config.nodeEnv === 'production') {
+      return res.status(404).json({ error: 'Not found' });
+    }
+
     const testEmail = 'testuser@example.com';
     
     // Find or create test user
@@ -216,7 +239,7 @@ router.post('/test-login', async (req, res) => {
     );
 
     // Log login using a valid enum 'user_login'
-    await AuditLog.logAction({
+    await logAuthAction({
       userId: user._id,
       action: 'user_login',
       resourceType: 'user',
@@ -332,7 +355,7 @@ router.put('/profile', authenticateToken, [
 router.post('/logout', authenticateToken, async (req, res) => {
   try {
     // Log logout
-    await AuditLog.logAction({
+    await logAuthAction({
       userId: req.user._id,
       action: 'user_logout',
       resourceType: 'user',

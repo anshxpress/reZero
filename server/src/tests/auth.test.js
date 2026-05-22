@@ -154,9 +154,9 @@ describe('Auth Routes', () => {
       const response = await request(app)
         .get('/api/v1/auth/profile')
         .set('Authorization', 'Bearer invalid-token')
-        .expect(403);
+        .expect(401);
 
-      expect(response.body.error).toBe('Invalid token');
+      expect(response.body.error).toBe('Invalid token. Please login again.');
     });
   });
 });

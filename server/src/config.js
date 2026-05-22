@@ -2,6 +2,12 @@ import dotenv from 'dotenv';
 
 dotenv.config();
 
+const isProduction = process.env.NODE_ENV === 'production';
+
+if (isProduction && !process.env.JWT_SECRET) {
+  throw new Error('JWT_SECRET must be set in production');
+}
+
 export const config = {
   // Server Configuration
   port: process.env.PORT || 4000,
@@ -21,7 +27,7 @@ export const config = {
   
   // JWT Configuration
   jwt: {
-    secret: process.env.JWT_SECRET || 'your-secret-key-change-in-production',
+    secret: process.env.JWT_SECRET || 'dev-secret-key-change-in-production',
     expiresIn: '24h'
   },
   

@@ -4,6 +4,7 @@ import { NewsSummarizationAgent } from './NewsSummarizationAgent.js';
 import { AnalystSupportAgent } from './AnalystSupportAgent.js';
 import { RecommenderAgent } from './RecommenderAgent.js';
 import logger from '../utils/logger.js';
+import prisma from '../db/prismaClient.js';
 
 export class MetaAgent {
   constructor() {
@@ -19,266 +20,111 @@ export class MetaAgent {
   /**
    * Convert any value to simple text representation
    * If it's an object, convert to JSON string
-   */
-  toSimpleText(value) {
-    if (typeof value === 'string') {
-      return value;
-    } else if (typeof value === 'object' && value !== null) {
-      return JSON.stringify(value, null, 2);
-    } else {
-      return String(value);
-    }
-  }
-
-  /**
-   * Orchestrate multiple agents to process a task
-   */
-  async orchestrateTask(task, input, selectedAgents, parameters = {}) {
-    const startTime = Date.now();
-    const taskId = task._id.toString();
-
-    logger.info('Starting task orchestration', {
-      taskId,
-      selectedAgents,
-      inputLength: input.length
-    });
-
-    try {
-      // Update task status to running
-      await task.start();
-
-      // Create agent jobs for each selected agent
-      const agentJobs = await this.createAgentJobs(task, selectedAgents, input, parameters);
-
-      // Execute agents in parallel
-      const agentResults = await this.executeAgentsInParallel(agentJobs, input, parameters);
-
-      // Aggregate results
-      const aggregatedResult = await this.aggregateResults(agentResults, task, parameters);
-
-      // Update task completion
-      const duration = Date.now() - startTime;
-      await task.updateProgress(100);
-      task.actualDuration = duration;
-      task.completedAt = new Date();
-      await task.save();
-
-      logger.info('Task orchestration completed', {
-        taskId,
-        duration,
-        agentCount: selectedAgents.length,
-        success: true
-      });
-
-      return {
-        status: 'completed',
-        taskId,
-        results: agentResults,
-        aggregatedResult,
-        metadata: {
-          duration,
-          agentCount: selectedAgents.length,
-          completedAt: new Date().toISOString()
-        }
-      };
-
-    } catch (error) {
-      logger.error('Task orchestration failed', {
-        taskId,
-        error: error.message,
-        duration: Date.now() - startTime
-      });
-
-      await task.fail(error);
-
-      return {
-        status: 'failed',
-        taskId,
-        error: {
-          message: error.message,
-          stack: error.stack,
-          timestamp: new Date().toISOString()
-        },
-        metadata: {
-          duration: Date.now() - startTime,
-          agentCount: selectedAgents.length
-        }
-      };
-    }
-  }
-
-  /**
-   * Create agent jobs for the selected agents
-   */
-  async createAgentJobs(task, selectedAgents, input, parameters) {
-    const agentJobs = [];
-    const AgentJob = (await import('../models/AgentJob.js')).default;
-
-    for (const agentType of selectedAgents) {
-      if (!this.agents[agentType]) {
-        throw new Error(`Unknown agent type: ${agentType}`);
-      }
-
-      // Create and save AgentJob to database
-      const agentJob = new AgentJob({
-        taskId: task._id,
-        agentType,
-        input: {
-          content: input,
-          taskId: task._id.toString(),
-          userId: task.userId.toString()
-        },
-        parameters: new Map(Object.entries(parameters[agentType] || this.getDefaultParameters(agentType))),
-        status: 'queued', // Use 'queued' instead of 'pending'
-        priority: this.getPriorityValue(task.priority) // Convert string priority to number
-      });
-
-      await agentJob.save();
-      agentJobs.push(agentJob);
-      
-      logger.info('Agent job created', {
-        jobId: agentJob._id,
-        taskId: task._id,
-        agentType
-      });
-    }
-
-    return agentJobs;
-  }
-
-  /**
-   * Execute agents in parallel
-   */
-  async executeAgentsInParallel(agentJobs, input, parameters) {
-    const AgentResult = (await import('../models/AgentResult.js')).default;
     const promises = agentJobs.map(async (job) => {
       const startTime = Date.now();
-      
+
       try {
-        // Update agent job status to running
-        await job.updateStatus('running');
-        
-        logger.info(`Starting agent: ${job.agentType}`, {
-          agentType: job.agentType,
-          taskId: job.input.taskId
+        await prisma.agentJob.update({
+          where: { id: job.id },
+          data: { status: 'running', startedAt: new Date() }
         });
 
         const agent = this.agents[job.agentType];
         if (!agent) {
           throw new Error(`Agent ${job.agentType} not found`);
         }
-        
-        // Convert Map to object for agent parameters
-        const agentParameters = Object.fromEntries(job.parameters);
-        
-        logger.info(`Agent parameters for ${job.agentType}:`, {
-          agentType: job.agentType,
-          parameters: agentParameters,
-          parametersType: typeof parameters
-        });
-        
-        // Add timeout to prevent hanging
+
+        const agentParameters = parameters[job.agentType] || job.parameters || {};
+
         const timeoutPromise = new Promise((_, reject) => {
-          setTimeout(() => reject(new Error(`Agent ${job.agentType} timed out after 5 minutes`)), 300000); // 5 minutes
+          setTimeout(() => reject(new Error(`Agent ${job.agentType} timed out after 5 minutes`)), 300000);
         });
-        
+
         const result = await Promise.race([
           agent.run(input, agentParameters),
           timeoutPromise
         ]);
 
-        // Debug: Log the actual agent output structure
-        logger.info(`Agent ${job.agentType} output structure:`, {
-          agentType: job.agentType,
-          outputKeys: Object.keys(result || {}),
-          outputType: typeof result,
-          hasSummary: !!(result && result.summary),
-          hasAnalysis: !!(result && result.analysis),
-          hasExtractedData: !!(result && result.extractedData),
-          hasRecommendations: !!(result && result.recommendations)
-        });
-
         const duration = Date.now() - startTime;
-        
-        // Update agent job status to completed
-        await job.updateStatus('completed');
-        
-        // Save agent result to database
-        const agentResult = new AgentResult({
-          taskId: job.taskId,
-          agentJobId: job._id,
-          agentType: job.agentType,
-          resultType: result.resultType || 'analysis', // Default to analysis if not specified
-          title: result.title || `${job.agentType.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase())} Analysis Result`,
-          content: result.content || this.generateAgentContent(job.agentType, result.output, input),
-          structuredData: new Map(Object.entries(result.output || {})),
-          metadata: new Map(Object.entries(result.metadata || {})),
-          confidence: result.confidence || 0.8,
-          quality: result.quality || 'medium',
-          provenance: {
-            sourceAgent: job.agentType,
-            processingSteps: ['agent_execution'],
-            processingTime: duration
+
+        await prisma.agentJob.update({
+          where: { id: job.id },
+          data: {
+            status: 'completed',
+            output: result.output,
+            completedAt: new Date(),
+            actualDuration: duration,
+            metadata: result.metadata
           }
         });
-        
-        await agentResult.save();
-        
-        logger.info(`Completed agent: ${job.agentType}`, {
+
+        const agentResult = await prisma.agentResult.create({
+          data: {
+            taskId: job.taskId,
+            agentJobId: job.id,
+            agentType: job.agentType,
+            resultType: 'analysis',
+            title: `${job.agentType} result`,
+            content: this.generateAgentContent(job.agentType, result.output, input),
+            structuredData: result.output || {},
+            confidence: result.metadata?.confidence || 0.8,
+            metadata: result.metadata || {}
+          }
+        });
+
+        logger.info(`Agent ${job.agentType} completed`, {
           agentType: job.agentType,
+          taskId: job.taskId,
           duration,
-          success: result.status === 'completed',
-          resultId: agentResult._id
+          resultId: agentResult.id
         });
 
         return {
           agentType: job.agentType,
-          result,
+          jobId: job.id,
+          taskId: job.taskId,
+          result: {
+            status: 'completed',
+            output: result.output,
+            metadata: {
+              ...result.metadata,
+              agentJobId: job.id,
+              agentResultId: agentResult.id
+            }
+          },
           duration,
-          timestamp: new Date().toISOString(),
-          agentResultId: agentResult._id
+          timestamp: new Date().toISOString()
         };
-
       } catch (error) {
         const duration = Date.now() - startTime;
-        
-        // Update agent job status to failed
-        await job.updateStatus('failed');
-        
-        // Save failed result to database
-        const agentResult = new AgentResult({
+
+        logger.error(`Agent ${job.agentType} failed`, {
+          agentType: job.agentType,
           taskId: job.taskId,
-          agentJobId: job._id,
-          agentType: job.agentType,
-          resultType: 'analysis', // Default result type for failed agents
-          title: `${job.agentType} Analysis Failed`,
-          content: `Agent execution failed: ${error.message}`,
-          structuredData: new Map(),
-          metadata: new Map(Object.entries({
-            error: error.message,
-            stack: error.stack,
-            timestamp: new Date().toISOString()
-          })),
-          confidence: 0.0, // No confidence in failed results
-          quality: 'low',
-          provenance: {
-            sourceAgent: job.agentType,
-            processingSteps: ['agent_execution'],
-            processingTime: duration
-          }
-        });
-        
-        await agentResult.save();
-        
-        logger.error(`Failed agent: ${job.agentType}`, {
-          agentType: job.agentType,
           error: error.message,
-          duration,
-          resultId: agentResult._id
+          stack: error.stack,
+          duration
+        });
+
+        await prisma.agentJob.update({
+          where: { id: job.id },
+          data: {
+            status: 'failed',
+            completedAt: new Date(),
+            actualDuration: duration,
+            error: {
+              message: error.message,
+              stack: error.stack,
+              timestamp: new Date(),
+              retryable: false
+            }
+          }
         });
 
         return {
           agentType: job.agentType,
+          jobId: job.id,
+          taskId: job.taskId,
           result: {
             status: 'failed',
             output: null,
@@ -286,26 +132,70 @@ export class MetaAgent {
               message: error.message,
               stack: error.stack,
               timestamp: new Date().toISOString()
+            },
+            metadata: {
+              duration
             }
           },
           duration,
-          timestamp: new Date().toISOString(),
-          agentResultId: agentResult._id
+          timestamp: new Date().toISOString()
         };
       }
     });
 
     return Promise.all(promises);
-  }
+                  }
+                });
+        
+                logger.info(`Agent ${job.agentType} completed`, {
+                  agentType: job.agentType,
+                  taskId: job.taskId,
+                  duration,
+                  resultType: agentResult.resultType
+                });
 
-  /**
-   * Aggregate results from multiple agents
+                return {
+                  job,
+                  result: agentResult,
+                  duration
+                };
+
+              } catch (error) {
+                logger.error(`Agent ${job.agentType} failed`, {
+                  agentType: job.agentType,
+                  taskId: job.taskId,
+                  error: error.message,
+                  stack: error.stack,
+                  duration: Date.now() - startTime
+                });
+
+                await prisma.agentJob.update({
+                  where: { id: job.id },
+                  data: {
+                    status: 'failed',
+                    completedAt: new Date(),
+                    error: { message: error.message, stack: error.stack, timestamp: new Date(), retryable: false }
+                  }
+                });
+        
+                return {
+                  job,
+                  error: {
+                    message: error.message,
+                    stack: error.stack,
+                    timestamp: new Date().toISOString()
+                  }
+                };
+              }
+            });
+
+            return Promise.all(promises);
    */
   async aggregateResults(agentResults, task, parameters = {}) {
     const { includeProvenance = true, includeConfidence = true } = parameters;
 
     logger.info('Aggregating agent results', {
-      taskId: task._id.toString(),
+      taskId: task.id,
       agentCount: agentResults.length
     });
 
@@ -330,8 +220,8 @@ export class MetaAgent {
         successfulAgents: successfulResults.length,
         failedAgents: failedResults.length,
         aggregationTimestamp: new Date().toISOString(),
-        taskId: task._id.toString(),
-        userId: task.userId.toString()
+        taskId: task.id,
+        userId: task.userId
       }
     };
 

@@ -30,6 +30,7 @@ app.use(helmet({
 app.use(cors({
   origin: [
     'http://localhost:3000',
+    'http://localhost:3001',
     'http://localhost:5173',
     'https://re-zero-omega.vercel.app',
     'https://rezero-8fv4.onrender.com', // Allow self-origin just in case
@@ -202,7 +203,14 @@ const startServer = async () => {
   }
 };
 
-// Start the server
-startServer();
+// Start the server only when executed directly, not when imported by tests
+const isDirectRun = process.env.NODE_ENV !== 'test'
+  && process.argv[1]
+  && process.argv[1].replace(/\\/g, '/').endsWith('/server/src/index.js');
+
+if (isDirectRun) {
+  startServer();
+}
 
 export default app;
+export { startServer };

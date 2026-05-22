@@ -155,7 +155,11 @@ export const AuthProvider = ({ children }) => {
       const response = await authAPI.register(userData);
       const { user, token } = response.data;
 
-      localStorage.setItem('token', token);
+      if (token) {
+        localStorage.setItem('token', token);
+      } else {
+        localStorage.removeItem('token');
+      }
       localStorage.setItem('user', JSON.stringify(user));
 
       dispatch({

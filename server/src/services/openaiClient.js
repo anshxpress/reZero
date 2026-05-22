@@ -5,8 +5,8 @@ import logger from '../utils/logger.js';
 class OpenAIClient {
   constructor() {
     if (!config.openai.apiKey) {
-      if (process.env.NODE_ENV === 'test') {
-        // In test environment, create a mock client
+      if (process.env.NODE_ENV === 'test' || process.env.NODE_ENV !== 'production') {
+        // In test and local development, create a mock client
         this.client = {
           chat: {
             completions: {
