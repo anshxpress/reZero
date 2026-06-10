@@ -11,7 +11,7 @@ const Header = ({ onMenuClick }) => {
 
   const handleLogout = async () => {
     await logout();
-    navigate('/login');
+    navigate('/dashboard');
   };
 
   // Close dropdown when clicking outside or pressing ESC

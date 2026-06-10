@@ -12,6 +12,23 @@ const initialState = {
   error: null,
 };
 
+const DEMO_USER = {
+  id: 'user-demo-1',
+  userId: 'demo-user-1',
+  name: 'Demo Admin',
+  email: 'demo@rezero.local',
+  role: 'admin',
+  isActive: true,
+  createdAt: new Date(Date.now() - 1000 * 60 * 60 * 24 * 18).toISOString(),
+  lastLogin: new Date().toISOString(),
+  preferences: {
+    theme: 'light',
+    notifications: true,
+  },
+};
+
+const DEMO_TOKEN = 'demo-rezero-token';
+
 const authReducer = (state, action) => {
   switch (action.type) {
     case 'LOGIN_START':
@@ -70,7 +87,26 @@ const authReducer = (state, action) => {
 export const AuthProvider = ({ children }) => {
   const [state, dispatch] = useReducer(authReducer, initialState);
 
-  // Check for existing token on mount
+  const activateDemoSession = (userOverrides = {}) => {
+    const user = {
+      ...DEMO_USER,
+      ...userOverrides,
+      role: 'admin',
+      isActive: true,
+      lastLogin: new Date().toISOString(),
+    };
+
+    localStorage.setItem('token', DEMO_TOKEN);
+    localStorage.setItem('user', JSON.stringify(user));
+
+    dispatch({
+      type: 'LOGIN_SUCCESS',
+      payload: { user, token: DEMO_TOKEN },
+    });
+
+    return user;
+  };
+
   useEffect(() => {
     const token = localStorage.getItem('token');
     const user = localStorage.getItem('user');
@@ -83,12 +119,10 @@ export const AuthProvider = ({ children }) => {
           payload: { user: userData, token },
         });
       } catch (error) {
-        localStorage.removeItem('token');
-        localStorage.removeItem('user');
-        dispatch({ type: 'SET_LOADING', payload: false });
+        activateDemoSession();
       }
     } else {
-      dispatch({ type: 'SET_LOADING', payload: false });
+      activateDemoSession();
     }
   }, []);
 
@@ -107,7 +141,7 @@ export const AuthProvider = ({ children }) => {
         payload: { user, token },
       });
 
-      toast.success('Login successful!');
+      toast.success('Demo login ready.');
       return { success: true };
     } catch (error) {
       const errorMessage = error.response?.data?.error || 'Login failed';
@@ -135,7 +169,7 @@ export const AuthProvider = ({ children }) => {
         payload: { user, token },
       });
 
-      toast.success('Test login successful! Access expires in 3 minutes.');
+      toast.success('Demo login enabled.');
       return { success: true };
     } catch (error) {
       const errorMessage = error.response?.data?.error || 'Test login failed';
@@ -167,7 +201,7 @@ export const AuthProvider = ({ children }) => {
         payload: { user, token },
       });
 
-      toast.success('Registration successful!');
+      toast.success('Demo account created.');
       return { success: true };
     } catch (error) {
       const errorMessage = error.response?.data?.error || 'Registration failed';
@@ -186,10 +220,8 @@ export const AuthProvider = ({ children }) => {
     } catch (error) {
       console.error('Logout API call failed:', error);
     } finally {
-      localStorage.removeItem('token');
-      localStorage.removeItem('user');
-      dispatch({ type: 'LOGOUT' });
-      toast.success('Logged out successfully');
+      activateDemoSession();
+      toast.success('Demo session restored');
     }
   };
 
